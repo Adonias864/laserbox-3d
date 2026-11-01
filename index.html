@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>LaserBox 3D — Projetista de caixas para laser</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"}}
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#"><span class="brand-mark">LB</span><span>LaserBox <b>3D</b><small>PROJETISTA PARA CORTE A LASER</small></span></a>
+    <div class="top-actions"><span class="save-state"><i></i> Projeto local</span><button id="exportBtn" class="primary">⇩ Exportar SVG</button></div>
+  </header>
+  <main class="workspace">
+    <aside class="sidebar">
+      <div class="side-heading"><div><span class="eyebrow">NOVO PROJETO</span><h1>Sua caixa</h1></div><span class="step">01 / 03</span></div>
+      <section class="control-section">
+        <h2><span>01</span> Formato e medidas</h2>
+        <label>Modelo da caixa<select id="shape"><option value="rect">Retangular</option><option value="hex" disabled>Hexagonal — em breve</option><option value="oct" disabled>Octogonal — em breve</option><option value="heart" disabled>Coração — em breve</option></select></label>
+        <div class="field-grid">
+          <label>Largura (mm)<input id="width" type="number" min="30" max="600" value="160"></label>
+          <label>Profundidade (mm)<input id="depth" type="number" min="30" max="600" value="100"></label>
+          <label>Altura (mm)<input id="height" type="number" min="20" max="500" value="70"></label>
+          <label>MDF (mm)<input id="thickness" type="number" min="2" max="12" step=".1" value="3"></label>
+        </div>
+      </section>
+      <section class="control-section">
+        <h2><span>02</span> Encaixes e travas</h2>
+        <div class="segmented"><button class="active" data-mode="auto">Automático</button><button data-mode="manual">Personalizado</button></div>
+        <label>Quantidade de dedos por borda <output id="countOut">5</output><input id="count" type="range" min="1" max="16" value="5"></label>
+        <label>Largura dos dedos (mm)<output id="fingerOut">10</output><input id="finger" type="range" min="3" max="30" value="10"></label>
+        <label>Folga / kerf (mm)<output id="kerfOut">0,15</output><input id="kerf" type="range" min="0" max="0.5" step=".05" value=".15"></label>
+        <div id="manualTools" class="manual-tools hidden">
+          <label>Borda para editar<select id="edge"><option value="front">Frontal</option><option value="back">Traseira</option><option value="left">Esquerda</option><option value="right">Direita</option></select></label>
+          <label>Posição inicial (mm)<output id="startOut">10</output><input id="start" type="range" min="0" max="80" value="10"></label>
+          <div class="manual-row"><button id="addFinger" class="secondary">＋ Adicionar dedo</button><button id="clearFinger" class="secondary">Limpar borda</button></div>
+          <p class="hint">No modo personalizado, adicione dedos na borda selecionada e ajuste sua posição inicial. A distribuição continua editável.</p>
+        </div>
+        <div class="joint-preview"><div class="joint-label"><span>PRÉVIA DA DISTRIBUIÇÃO</span><b id="jointCount">5 dedos</b></div><div id="fingerPreview" class="finger-preview"></div></div>
+      </section>
+      <section class="control-section">
+        <h2><span>03</span> Opções</h2>
+        <label class="checkline"><input id="lid" type="checkbox" checked> Incluir tampa</label>
+        <label class="checkline"><input id="dimensions" type="checkbox" checked> Mostrar medidas no SVG</label>
+      </section>
+      <div class="sidebar-footer"><span>LaserBox 3D <b>v0.1</b></span><span>Feito para criar e cortar</span></div>
+    </aside>
+    <section class="preview-area">
+      <div class="preview-header"><div><span class="eyebrow">VISUALIZAÇÃO INTERATIVA</span><h2>Modelo 3D</h2></div><div class="view-tools"><button id="resetView" title="Centralizar visualização">◎</button><button id="wireBtn" title="Alternar estrutura">◇</button></div></div>
+      <div id="viewport" class="viewport"><div class="loading">Preparando visualização 3D…</div><div class="view-label">PRÉVIA DO PROJETO <span>•</span> NÃO É ESCALA REAL</div></div>
+      <div class="preview-bottom"><div class="metric"><span>DIMENSÕES EXTERNAS</span><b id="dimensionText">160 × 100 × 70 mm</b></div><div class="metric"><span>PEÇAS ESTIMADAS</span><b id="pieceCount">6 peças</b></div><div class="metric"><span>MATERIAL</span><b id="materialText">MDF 3 mm</b></div></div>
+      <div class="notice"><b>ⓘ</b><span>Esta é a primeira versão do projetista. Confira as medidas e faça um teste de encaixe em retalho antes de cortar a chapa definitiva.</span></div>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
