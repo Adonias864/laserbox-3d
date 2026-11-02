@@ -80,14 +80,14 @@ function addFingerBase(parent,width,depth,thickness,count){
 function addPanel(parent,w,h,depth,x,y,z,mat=wood){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,depth),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
 function rebuild(){
  const {w,d,h,t,n}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
- // Cada canto alterna qual parede atravessa a espessura da outra.
- // Frente/traseira são inteiras nas bandas pares; laterais nas ímpares.
+ // Os encaixes verticais dos cantos alternam entre paredes frontais e laterais.
+ // Os rasgos inferiores usam uma paridade local comum nas quatro paredes.
  // A alternância acompanha o sentido físico de cada borda da base:
- // frente e lateral esquerda usam paridade invertida; traseira e direita, normal.
- addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,false);
+ // Todas as paredes usam a mesma paridade local: a orientação espacial já é resolvida pelo sentido das bordas da base.
+ addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,true);
  addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,true);
  addSteppedWall(model,d,h,t,n,false,w/2-t/2,h/2,0,-Math.PI/2,darkWood,true);
- addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,false);
+ addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,true);
  // Fundo interno plano, apoiado nas quatro paredes. O encaixe inferior será
  // tratado como uma etapa própria, sem fingir que os rasgos atuais são válidos.
  addFingerBase(model,w-2*t,d-2*t,t,n);
@@ -109,9 +109,9 @@ function basePath(width,depth,count,thickness,kerf){
 function exportSVG(){
  const {w,d,h,t,n,k}=dims(),gap=12,kerf=k/2;
  const panels=[
-  ['Frente',w,h,wallPath(w,h,n,t,true,kerf,false)],
+  ['Frente',w,h,wallPath(w,h,n,t,true,kerf,true)],
   ['Traseira',w,h,wallPath(w,h,n,t,true,kerf,true)],
-  ['Lateral esquerda',d,h,wallPath(d,h,n,t,false,kerf,false)],
+  ['Lateral esquerda',d,h,wallPath(d,h,n,t,false,kerf,true)],
   ['Lateral direita',d,h,wallPath(d,h,n,t,false,kerf,true)],
   ['Fundo',w-2*t,d-2*t,basePath(w-2*t,d-2*t,n,t,kerf)]
  ];
