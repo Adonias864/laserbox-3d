@@ -44,7 +44,17 @@
       </section>
       <section class="control-section">
         <h2><span>03</span> Opções</h2>
-        <label class="checkline"><input id="lid" type="checkbox" checked> Incluir tampa</label>
+        <label>Modelo da tampa
+          <select id="lidType">
+            <option value="none">Sem tampa — caixa aberta</option>
+            <option value="flat" selected>Plana — apoiada em cima</option>
+            <option value="cap">Sobreposta — veste por fora</option>
+            <option value="inset">Interna — encaixe por dentro</option>
+            <option value="sliding" disabled>Deslizante — próxima etapa</option>
+            <option value="hinged" disabled>Articulada — próxima etapa</option>
+          </select>
+        </label>
+        <label>Folga da tampa (mm)<output id="lidGapOut">0,5</output><input id="lidGap" type="range" min="0.2" max="2" step="0.1" value="0.5"></label>
         <label class="checkline"><input id="dimensions" type="checkbox" checked> Mostrar medidas no SVG</label>
       </section>
       <div class="sidebar-footer"><span>LaserBox 3D <b>v0.1</b></span><span>Feito para criar e cortar</span></div>
