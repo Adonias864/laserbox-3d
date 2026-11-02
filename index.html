@@ -67,6 +67,31 @@
     </section>
   </main>
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./app.js"></script>
+  <script type="module">
+    const loading = document.querySelector('.loading');
+    let started = false;
+    const show3DError = (error) => {
+      if (!loading || started) return;
+      started = true;
+      const detail = error?.message || String(error || 'Falha desconhecida');
+      loading.style.display = 'flex';
+      loading.style.flexDirection = 'column';
+      loading.style.gap = '12px';
+      loading.style.padding = '24px';
+      loading.style.textAlign = 'center';
+      loading.innerHTML = '<strong style="color:#f0b66c">Não foi possível iniciar a visualização 3D.</strong><span style="max-width:520px;line-height:1.6">Detalhe: ' + detail.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) + '</span><span>Verifique sua conexão com a internet e se a aceleração de hardware/WebGL está ativada no navegador.</span><button onclick="location.reload()" style="margin-top:8px;padding:10px 18px;border:0;border-radius:8px;background:#e7a34b;color:#21190e;font-weight:700;cursor:pointer">Tentar novamente</button>';
+    };
+    const watchdog = setTimeout(() => {
+      if (!document.querySelector('#viewport canvas')) show3DError(new Error('O carregamento do módulo 3D demorou demais ou foi bloqueado.'));
+    }, 20000);
+    import('./app.js').then(() => {
+      clearTimeout(watchdog);
+      started = true;
+    }).catch(error => {
+      clearTimeout(watchdog);
+      show3DError(error);
+      console.error('Falha ao carregar LaserBox 3D:', error);
+    });
+  </script>
 </body>
 </html>
