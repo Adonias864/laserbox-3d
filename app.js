@@ -81,8 +81,9 @@ function addFingerBase(parent,width,depth,thickness,count){
 }
 function addPanel(parent,w,h,depth,x,y,z,mat=wood){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,depth),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
 function lidSkirtPoints(length,height,thickness,count,phase){
+ // Mesmo padrão das laterais: 2*n faixas e dentes alternados nas duas pontas.
  const bands=Math.max(4,count*2),bh=height/bands,pts=[[0,0],[length,0]];
- const inset=i=>(((i%2===0)===phase)?0:thickness);
+ const inset=i=>((i%2===0)===phase)?0:thickness;
  for(let i=0;i<bands;i++)pts.push([length-inset(i),(i+1)*bh]);
  pts.push([inset(bands-1),height]);
  for(let i=bands-1;i>=0;i--)pts.push([inset(i),i*bh]);
@@ -106,14 +107,14 @@ function addLid(parent,type,w,d,h,t,gap){
  const group=new THREE.Group();
  if(type==='flat'){addPanel(group,w,t,d,0,h+t/2,0,wood);parent.add(group);return {pieces:1,group};}
  if(type==='cap'){
-  const lidW=w+2*t+2*gap,lidD=d+2*t+2*gap,skirtH=10;
+  const lidW=w+2*t+2*gap,lidD=d+2*t+2*gap,skirtH=clamp(+$('lidSkirtHeight').value,5,50);
   addPanel(group,lidW,t,lidD,0,h+t/2,0,wood);
   const skirtY=h-skirtH/2;
   // Quatro abas com dentes alternados nas extremidades para travar os cantos.
-  addLidSkirt(group,lidW,skirtH,t,2,true,0,skirtY,-(d/2+t/2+gap),0,wood);
+  addLidSkirt(group,lidW,skirtH,t,n,true,0,skirtY,-(d/2+t/2+gap),0,wood);
   addLidSkirt(group,lidW,skirtH,t,2,true,0,skirtY,(d/2+t/2+gap),0,wood);
-  addLidSkirt(group,lidD,skirtH,t,2,false,-(w/2+t/2+gap),skirtY,0,-Math.PI/2,wood);
-  addLidSkirt(group,lidD,skirtH,t,2,false,(w/2+t/2+gap),skirtY,0,Math.PI/2,wood);
+  addLidSkirt(group,lidD,skirtH,t,n,false,-(w/2+t/2+gap),skirtY,0,-Math.PI/2,wood);
+  addLidSkirt(group,lidD,skirtH,t,n,false,(w/2+t/2+gap),skirtY,0,Math.PI/2,wood);
   parent.add(group);return {pieces:5,group};
  }
  if(type==='inset'){
@@ -168,11 +169,11 @@ function exportSVG(){
  const rect=(name,pw,ph)=>panels.push([name,pw,ph,null]);
  if(lidType==='flat')rect('Tampa plana',w,d);
  if(lidType==='cap'){
-  const lidW=w+2*t+2*lidGap,lidD=d+2*t+2*lidGap,skirtH=10;
+  const lidW=w+2*t+2*lidGap,lidD=d+2*t+2*lidGap,skirtH=clamp(+$('lidSkirtHeight').value,5,50);
   rect('Tampa sobreposta',lidW,lidD);
-  panels.push(['Aba frontal',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,2,true,kerf)]);
+  panels.push(['Aba frontal',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,true,kerf)]);
   panels.push(['Aba traseira',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,2,true,kerf)]);
-  panels.push(['Aba esquerda',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,2,false,kerf)]);
+  panels.push(['Aba esquerda',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,false,kerf)]);
   panels.push(['Aba direita',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,2,false,kerf)]);
  }
  if(lidType==='inset'){
@@ -196,7 +197,7 @@ function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('sho
 function resize(){const el=$('viewport'),w=el.clientWidth,h=el.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);}
 const ro=new ResizeObserver(resize);ro.observe($('viewport'));resize();
 function animate(){requestAnimationFrame(animate);if(lidAssembly){lidAssembly.position.y+=(lidTargetY-lidAssembly.position.y)*0.12;if(Math.abs(lidTargetY-lidAssembly.position.y)<0.03)lidAssembly.position.y=lidTargetY;}controls.update();renderer.render(scene,camera);}animate();
-['width','depth','height','thickness','count','finger','kerf','lidGap'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='count')$('countOut').textContent=$('count').value;if(id==='finger')$('fingerOut').textContent=$('finger').value;if(id==='kerf')$('kerfOut').textContent=Number($('kerf').value).toLocaleString('pt-BR');if(id==='lidGap')$('lidGapOut').textContent=Number($('lidGap').value).toLocaleString('pt-BR');rebuild();}));
+['width','depth','height','thickness','count','finger','kerf','lidGap','lidSkirtHeight'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='count')$('countOut').textContent=$('count').value;if(id==='finger')$('fingerOut').textContent=$('finger').value;if(id==='kerf')$('kerfOut').textContent=Number($('kerf').value).toLocaleString('pt-BR');if(id==='lidGap')$('lidGapOut').textContent=Number($('lidGap').value).toLocaleString('pt-BR');if(id==='lidSkirtHeight')$('lidSkirtHeightOut').textContent=$('lidSkirtHeight').value;rebuild();}));
 $('lidType').addEventListener('change',rebuild);
 $('start').addEventListener('input',()=>$('startOut').textContent=$('start').value);
 document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{state.mode=btn.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b===btn));$('manualTools').classList.toggle('hidden',state.mode!=='manual');updateFingerPreview();}));
