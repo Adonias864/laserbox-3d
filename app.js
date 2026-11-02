@@ -17,14 +17,48 @@ const wood=new THREE.MeshStandardMaterial({color:0xc99155,roughness:.72,side:THR
 const darkWood=new THREE.MeshStandardMaterial({color:0x9d693a,roughness:.8,side:THREE.DoubleSide});
 function dims(){return {w:clamp(+$('width').value,30,600),d:clamp(+$('depth').value,30,600),h:clamp(+$('height').value,20,500),t:clamp(+$('thickness').value,2,12),n:clamp(+$('count').value,2,16),f:clamp(+$('finger').value,3,30),k:+$('kerf').value};}
 function makeEdgeShape(width,height,tabCount,tabDepth,kind){
- const s=new THREE.Shape();const intervals=Math.max(2,tabCount*2);const step=height/intervals;
+ const s=new THREE.Shape(),sideSteps=Math.max(2,tabCount*2),sideStep=height/sideSteps;
+ const bottomSteps=Math.max(4,tabCount*2),bottomStep=width/bottomSteps;
  const leftX=i=>kind==='male'?(i%2===0?-tabDepth:0):(i%2===0?tabDepth:0);
  const rightX=i=>kind==='male'?(i%2===0?width+tabDepth:width):(i%2===0?width-tabDepth:width);
- s.moveTo(0,0);s.lineTo(width,0);
- for(let i=0;i<intervals;i++){const y0=i*step,y1=(i+1)*step;s.lineTo(rightX(i),y0);s.lineTo(rightX(i),y1);}
+ // Aberturas inferiores: recebem as linguetas da base.
+ s.moveTo(0,0);
+ for(let i=0;i<bottomSteps;i++){
+  const x0=i*bottomStep,x1=(i+1)*bottomStep;
+  if(i%2===0){s.lineTo(x0,0);s.lineTo(x0,tabDepth);s.lineTo(x1,tabDepth);s.lineTo(x1,0);}
+  else s.lineTo(x1,0);
+ }
+ // Laterais com dedos macho/fêmea complementares.
+ for(let i=0;i<sideSteps;i++){const y0=i*sideStep,y1=(i+1)*sideStep;s.lineTo(rightX(i),y0);s.lineTo(rightX(i),y1);}
  s.lineTo(0,height);
- for(let i=intervals-1;i>=0;i--){const y1=(i+1)*step,y0=i*step;s.lineTo(leftX(i),y1);s.lineTo(leftX(i),y0);}
+ for(let i=sideSteps-1;i>=0;i--){const y1=(i+1)*sideStep,y0=i*sideStep;s.lineTo(leftX(i),y1);s.lineTo(leftX(i),y0);}
  s.closePath();return s;
+}
+function makeBaseShape(width,depth,count,tabDepth){
+ const s=new THREE.Shape(),steps=Math.max(4,count*2);
+ const edge=(ax,ay,bx,by,nx,ny)=>{
+  for(let i=0;i<steps;i++){
+   const x0=ax+(bx-ax)*i/steps,y0=ay+(by-ay)*i/steps;
+   const x1=ax+(bx-ax)*(i+1)/steps,y1=ay+(by-ay)*(i+1)/steps;
+   if(i===0)s.lineTo(x0,y0);
+   if(i%2===0){s.lineTo(x0+nx*tabDepth,y0+ny*tabDepth);s.lineTo(x1+nx*tabDepth,y1+ny*tabDepth);}
+   s.lineTo(x1,y1);
+  }
+ };
+ s.moveTo(0,0);
+ edge(0,0,width,0,0,-1);
+ edge(width,0,width,depth,1,0);
+ edge(width,depth,0,depth,0,1);
+ edge(0,depth,0,0,-1,0);
+ s.closePath();return s;
+}
+function addFingerBase(parent,width,depth,thickness,count){
+ const shape=makeBaseShape(width,depth,count,thickness);
+ const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:false,curveSegments:1,steps:1});
+ geo.translate(-width/2,-depth/2,-thickness/2);
+ const mesh=new THREE.Mesh(geo,darkWood);
+ mesh.rotation.x=Math.PI/2;mesh.position.set(0,thickness/2,0);
+ mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
 function addJointPanel(parent,width,height,thickness,tabCount,tabDepth,kind,x,y,z,rotation=0,mat=wood){
  const shape=makeEdgeShape(width,height,tabCount,tabDepth,kind);
@@ -41,8 +75,8 @@ function rebuild(){
  addJointPanel(model,w,h,t,n,tabDepth,'male',0,h/2,-d/2+t/2,0,wood);
  addJointPanel(model,d-2*t,h,t,n,tabDepth,'female',w/2-t/2,h/2,0,Math.PI/2,darkWood);
  addJointPanel(model,d-2*t,h,t,n,tabDepth,'female',-w/2+t/2,h/2,0,Math.PI/2,darkWood);
- // Base e tampa ficam apoiadas entre as paredes; não recebem encaixes fictícios.
- addPanel(model,w-2*t,t,d-2*t,0,t/2,0,darkWood);
+ // A base recebe linguetas nos quatro lados; as paredes têm aberturas inferiores correspondentes.
+ addFingerBase(model,w-2*t,d-2*t,t,n);
  if($('lid').checked)addPanel(model,w,t,d,0,h+t/2,0,wood);
  model.traverse(o=>{if(o.isMesh)o.material.wireframe=state.wire;});
  $('dimensionText').textContent=`${w} × ${d} × ${h} mm`;
