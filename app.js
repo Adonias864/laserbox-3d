@@ -19,7 +19,15 @@ function dims(){return {w:clamp(+$('width').value,30,600),d:clamp(+$('depth').va
 function wallPoints(length,height,count,thickness,fullOnEven){
  const bands=Math.max(4,count*2),bh=height/bands,pts=[];
  const inset=i=>((i%2===0)===fullOnEven)?0:thickness;
- pts.push([inset(0),0],[length-inset(0),0]);
+ // Rasgos no pé da parede: recebem as linguetas do fundo.
+ const steps=Math.max(4,count*2),usable=length-2*thickness,step=usable/steps;
+ pts.push([inset(0),0],[thickness,0]);
+ for(let i=0;i<steps;i++){
+  const x0=thickness+i*step,x1=thickness+(i+1)*step;
+  if(i>0&&i<steps-1&&i%2===0)pts.push([x0,0],[x0,thickness],[x1,thickness],[x1,0]);
+  else pts.push([x1,0]);
+ }
+ pts.push([length-inset(0),0]);
  for(let i=0;i<bands;i++){
   const y0=i*bh,y1=(i+1)*bh,ix=length-inset(i);
   pts.push([ix,y0],[ix,y1]);
@@ -42,6 +50,33 @@ function addSteppedWall(parent,length,height,thickness,count,fullOnEven,x,y,z,ro
  const mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,z);mesh.rotation.y=rotation;
  mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
+function basePoints(width,depth,count,thickness){
+ const steps=Math.max(4,count*2),pts=[];
+ const edge=(ax,ay,bx,by,nx,ny)=>{
+  const dx=(bx-ax)/steps,dy=(by-ay)/steps;
+  for(let i=0;i<steps;i++){
+   const x0=ax+dx*i,y0=ay+dy*i,x1=ax+dx*(i+1),y1=ay+dy*(i+1);
+   if(i===0)pts.push([x0,y0]);
+   if(i>0&&i<steps-1&&i%2===0){
+    pts.push([x0+nx*thickness,y0+ny*thickness],[x1+nx*thickness,y1+ny*thickness]);
+   }
+   pts.push([x1,y1]);
+  }
+ };
+ edge(0,0,width,0,0,-1);
+ edge(width,0,width,depth,1,0);
+ edge(width,depth,0,depth,0,1);
+ edge(0,depth,0,0,-1,0);
+ return pts;
+}
+function addFingerBase(parent,width,depth,thickness,count){
+ const pts=basePoints(width,depth,count,thickness),shape=new THREE.Shape();
+ shape.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)shape.lineTo(pts[i][0],pts[i][1]);shape.closePath();
+ const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:false,curveSegments:1,steps:1});
+ geo.translate(-width/2,-depth/2,-thickness/2);
+ const mesh=new THREE.Mesh(geo,darkWood);mesh.rotation.x=Math.PI/2;mesh.position.set(0,thickness/2,0);
+ mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
+}
 function addPanel(parent,w,h,depth,x,y,z,mat=wood){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,depth),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
 function rebuild(){
  const {w,d,h,t,n}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
@@ -53,7 +88,7 @@ function rebuild(){
  addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood);
  // Fundo interno plano, apoiado nas quatro paredes. O encaixe inferior será
  // tratado como uma etapa própria, sem fingir que os rasgos atuais são válidos.
- addPanel(model,w-2*t,t,d-2*t,0,t/2,0,darkWood);
+ addFingerBase(model,w-2*t,d-2*t,t,n);
  if($('lid').checked)addPanel(model,w,t,d,0,h+t/2,0,wood);
  model.traverse(o=>{if(o.isMesh)o.material.wireframe=state.wire;});
  $('dimensionText').textContent=`${w} × ${d} × ${h} mm`;
@@ -65,6 +100,10 @@ function wallPath(length,height,n,t,fullOnEven,kerf){
  const minX=Math.min(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1]));
  return 'M '+pts.map(p=>`${(p[0]-minX+kerf).toFixed(3)} ${(p[1]-minY+kerf).toFixed(3)}`).join(' L ')+' Z';
 }
+function basePath(width,depth,count,thickness,kerf){
+ const pts=basePoints(width,depth,count,thickness),minX=Math.min(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1]));
+ return 'M '+pts.map(p=>`${(p[0]-minX+kerf).toFixed(3)} ${(p[1]-minY+kerf).toFixed(3)}`).join(' L ')+' Z';
+}
 function exportSVG(){
  const {w,d,h,t,n,k}=dims(),gap=12,kerf=k/2;
  const panels=[
@@ -72,7 +111,7 @@ function exportSVG(){
   ['Traseira',w,h,wallPath(w,h,n,t,true,kerf)],
   ['Lateral esquerda',d,h,wallPath(d,h,n,t,false,kerf)],
   ['Lateral direita',d,h,wallPath(d,h,n,t,false,kerf)],
-  ['Fundo',w-2*t,d-2*t,null]
+  ['Fundo',w-2*t,d-2*t,basePath(w-2*t,d-2*t,n,t,kerf)]
  ];
  if($('lid').checked)panels.push(['Tampa',w,d,null]);
  let x=10,y=10,rowH=0,maxW=0;const shapes=[];
