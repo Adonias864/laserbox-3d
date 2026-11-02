@@ -16,7 +16,7 @@ let model=new THREE.Group();scene.add(model);
 const wood=new THREE.MeshStandardMaterial({color:0xc99155,roughness:.72,side:THREE.DoubleSide});
 const darkWood=new THREE.MeshStandardMaterial({color:0x9d693a,roughness:.8,side:THREE.DoubleSide});
 function dims(){return {w:clamp(+$('width').value,30,600),d:clamp(+$('depth').value,30,600),h:clamp(+$('height').value,20,500),t:clamp(+$('thickness').value,2,12),n:clamp(+$('count').value,2,16),f:clamp(+$('finger').value,3,30),k:+$('kerf').value};}
-function fingerSteps(count){return Math.max(6,Math.round(count)*2+2);}
+function fingerSteps(count){return Math.max(3,Math.round(count)*2+1);}
 function wallPoints(length,height,count,thickness,fullOnEven,bottomOnEven=true){
  const bands=Math.max(4,count*2),bh=height/bands,pts=[];
  const inset=i=>((i%2===0)===fullOnEven)?0:thickness;
@@ -53,7 +53,7 @@ function addSteppedWall(parent,length,height,thickness,count,fullOnEven,x,y,z,ro
 }
 function basePoints(width,depth,count,thickness){
  const steps=fingerSteps(count),pts=[];
- const edge=(ax,ay,bx,by,nx,ny,tabOnEven=true)=>{
+ const edge=(ax,ay,bx,by,nx,ny,tabOnEven=false)=>{
   const dx=(bx-ax)/steps,dy=(by-ay)/steps;
   for(let i=0;i<steps;i++){
    const x0=ax+dx*i,y0=ay+dy*i,x1=ax+dx*(i+1),y1=ay+dy*(i+1);
@@ -67,7 +67,7 @@ function basePoints(width,depth,count,thickness){
  edge(0,0,width,0,0,-1);
  edge(width,0,width,depth,1,0);
  edge(width,depth,0,depth,0,1,false);
- edge(0,depth,0,0,-1,0,true);
+ edge(0,depth,0,0,-1,0,false);
  return pts;
 }
 function addFingerBase(parent,width,depth,thickness,count){
@@ -83,13 +83,13 @@ function rebuild(){
  const {w,d,h,t,n}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
  // Os encaixes verticais dos cantos alternam entre paredes frontais e laterais.
  // Os rasgos inferiores usam uma paridade local comum nas quatro paredes.
- // Cada borda usa 2*n+2 segmentos para produzir exatamente n dentes completos,
- // sem deixar uma meia divisão nas extremidades. Base e paredes compartilham o mesmo passo.
- // A borda traseira é percorrida no sentido inverso e, por isso, usa a paridade oposta.
- addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,true);
- addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,true);
- addSteppedWall(model,d,h,t,n,false,w/2-t/2,h/2,0,-Math.PI/2,darkWood,true);
- addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,true);
+ // Cada borda usa 2*n+1 segmentos. Os n dentes ficam centralizados,
+ // com uma margem de um passo em cada extremidade. Base e paredes usam o mesmo passo.
+ // Como a divisão é ímpar, a inversão do sentido da borda traseira preserva a paridade.
+ addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,false);
+ addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,false);
+ addSteppedWall(model,d,h,t,n,false,w/2-t/2,h/2,0,-Math.PI/2,darkWood,false);
+ addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,false);
  // Fundo com dentes dimensionados pelo mesmo passo dos rasgos inferiores das paredes.
  addFingerBase(model,w-2*t,d-2*t,t,n);
  if($('lid').checked)addPanel(model,w,t,d,0,h+t/2,0,wood);
@@ -110,9 +110,9 @@ function basePath(width,depth,count,thickness,kerf){
 function exportSVG(){
  const {w,d,h,t,n,k}=dims(),gap=12,kerf=k/2;
  const panels=[
-  ['Frente',w,h,wallPath(w,h,n,t,true,kerf,true)],
+  ['Frente',w,h,wallPath(w,h,n,t,true,kerf,false)],
   ['Traseira',w,h,wallPath(w,h,n,t,true,kerf,true)],
-  ['Lateral esquerda',d,h,wallPath(d,h,n,t,false,kerf,true)],
+  ['Lateral esquerda',d,h,wallPath(d,h,n,t,false,kerf,false)],
   ['Lateral direita',d,h,wallPath(d,h,n,t,false,kerf,true)],
   ['Fundo',w-2*t,d-2*t,basePath(w-2*t,d-2*t,n,t,kerf)]
  ];
