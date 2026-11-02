@@ -16,7 +16,7 @@ let model=new THREE.Group();scene.add(model);
 const wood=new THREE.MeshStandardMaterial({color:0xc99155,roughness:.72,side:THREE.DoubleSide});
 const darkWood=new THREE.MeshStandardMaterial({color:0x9d693a,roughness:.8,side:THREE.DoubleSide});
 function dims(){return {w:clamp(+$('width').value,30,600),d:clamp(+$('depth').value,30,600),h:clamp(+$('height').value,20,500),t:clamp(+$('thickness').value,2,12),n:clamp(+$('count').value,2,16),f:clamp(+$('finger').value,3,30),k:+$('kerf').value};}
-function fingerSteps(count){return Math.max(5,Math.round(count)*2+1);}
+function fingerSteps(count){return Math.max(6,Math.round(count)*2+2);}
 function wallPoints(length,height,count,thickness,fullOnEven,bottomOnEven=true){
  const bands=Math.max(4,count*2),bh=height/bands,pts=[];
  const inset=i=>((i%2===0)===fullOnEven)?0:thickness;
@@ -66,7 +66,7 @@ function basePoints(width,depth,count,thickness){
  };
  edge(0,0,width,0,0,-1);
  edge(width,0,width,depth,1,0);
- edge(width,depth,0,depth,0,1,true);
+ edge(width,depth,0,depth,0,1,false);
  edge(0,depth,0,0,-1,0,true);
  return pts;
 }
@@ -83,10 +83,9 @@ function rebuild(){
  const {w,d,h,t,n}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
  // Os encaixes verticais dos cantos alternam entre paredes frontais e laterais.
  // Os rasgos inferiores usam uma paridade local comum nas quatro paredes.
- // Cada borda usa 2*n+1 segmentos: isso gera exatamente n dentes/rasgos,
- // distribuídos por todo o comprimento útil. A base e as paredes compartilham o mesmo passo.
- // A borda traseira é percorrida no sentido inverso; com número ímpar de segmentos,
- // a paridade permanece alinhada e também usa true.
+ // Cada borda usa 2*n+2 segmentos para produzir exatamente n dentes completos,
+ // sem deixar uma meia divisão nas extremidades. Base e paredes compartilham o mesmo passo.
+ // A borda traseira é percorrida no sentido inverso e, por isso, usa a paridade oposta.
  addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,true);
  addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,true);
  addSteppedWall(model,d,h,t,n,false,w/2-t/2,h/2,0,-Math.PI/2,darkWood,true);
