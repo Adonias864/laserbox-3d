@@ -80,17 +80,10 @@ function addFingerBase(parent,width,depth,thickness,count){
  mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
 function addPanel(parent,w,h,depth,x,y,z,mat=wood){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,depth),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
-function lidSkirtPoints(length,height,thickness,count,phase,bottomOnEven=phase){
- // Borda inferior quadriculada em toda a extensão, com dentes alternados.
- // As laterais verticais mantêm a alternância dos encaixes dos cantos.
- const bands=Math.max(4,count*2),bh=height/bands,pts=[[0,0],[thickness,0]];
- const steps=fingerSteps(count),usable=length-2*thickness,step=usable/steps;
- for(let i=0;i<steps;i++){
-  const x0=thickness+i*step,x1=thickness+(i+1)*step;
-  if(i>0&&i<steps-1&&((i%2===0)===bottomOnEven))pts.push([x0,-thickness],[x1,-thickness],[x1,0]);
-  else pts.push([x1,0]);
- }
- pts.push([length,0]);
+function lidSkirtPoints(length,height,thickness,count,phase){
+ // Borda inferior totalmente reta e lisa.
+ // Os encaixes alternados ficam somente nas duas extremidades laterais da aba.
+ const bands=Math.max(4,count*2),bh=height/bands,pts=[[0,0],[length,0]];
  const inset=i=>((i%2===0)===phase)?0:thickness;
  for(let i=0;i<bands;i++)pts.push([length-inset(i),(i+1)*bh]);
  pts.push([inset(bands-1),height]);
@@ -118,11 +111,11 @@ function addLid(parent,type,w,d,h,t,gap,n){
   const lidW=w+2*t+2*gap,lidD=d+2*t+2*gap,skirtH=clamp(+$('lidSkirtHeight').value,5,50);
   addPanel(group,lidW,t,lidD,0,h+t/2,0,wood);
   const skirtY=h-skirtH/2;
-  // Quatro abas com borda inferior quadriculada em toda a extensão e cantos alternados.
-  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,-(d/2+t/2+gap),0,wood,false);
-  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,(d/2+t/2+gap),0,wood,true);
-  addLidSkirt(group,lidD,skirtH,t,n,true,-(w/2+t/2+gap),skirtY,0,-Math.PI/2,wood,true);
-  addLidSkirt(group,lidD,skirtH,t,n,true,(w/2+t/2+gap),skirtY,0,Math.PI/2,wood,false);
+  // Quatro abas com borda inferior lisa e encaixes somente nas extremidades laterais.
+  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,-(d/2+t/2+gap),0,wood);
+  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,(d/2+t/2+gap),0,wood);
+  addLidSkirt(group,lidD,skirtH,t,n,true,-(w/2+t/2+gap),skirtY,0,-Math.PI/2,wood);
+  addLidSkirt(group,lidD,skirtH,t,n,true,(w/2+t/2+gap),skirtY,0,Math.PI/2,wood);
   parent.add(group);return {pieces:5,group};
  }
  if(type==='inset'){
@@ -179,10 +172,10 @@ function exportSVG(){
  if(lidType==='cap'){
   const lidW=w+2*t+2*lidGap,lidD=d+2*t+2*lidGap,skirtH=clamp(+$('lidSkirtHeight').value,5,50);
   rect('Tampa sobreposta',lidW,lidD);
-  panels.push(['Aba frontal',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,false,kerf,false)]);
-  panels.push(['Aba traseira',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,true,kerf,true)]);
-  panels.push(['Aba esquerda',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,true,kerf,true)]);
-  panels.push(['Aba direita',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,false,kerf,false)]);
+  panels.push(['Aba frontal',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,false,kerf)]);
+  panels.push(['Aba traseira',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,true,kerf)]);
+  panels.push(['Aba esquerda',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,true,kerf)]);
+  panels.push(['Aba direita',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,false,kerf)]);
  }
  if(lidType==='inset'){
   const iw=Math.max(10,w-2*t-2*lidGap),id=Math.max(10,d-2*t-2*lidGap);
