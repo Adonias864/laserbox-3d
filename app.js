@@ -16,15 +16,15 @@ let model=new THREE.Group();scene.add(model);
 const wood=new THREE.MeshStandardMaterial({color:0xc99155,roughness:.72,side:THREE.DoubleSide});
 const darkWood=new THREE.MeshStandardMaterial({color:0x9d693a,roughness:.8,side:THREE.DoubleSide});
 function dims(){return {w:clamp(+$('width').value,30,600),d:clamp(+$('depth').value,30,600),h:clamp(+$('height').value,20,500),t:clamp(+$('thickness').value,2,12),n:clamp(+$('count').value,2,16),f:clamp(+$('finger').value,3,30),k:+$('kerf').value};}
-function makeEdgeShape(width,height,tabCount,tabDepth,kind){
+function makeEdgeShape(width,height,tabCount,tabDepth,kind,bottomInset=0){
  const s=new THREE.Shape(),sideSteps=Math.max(2,tabCount*2),sideStep=height/sideSteps;
- const bottomSteps=Math.max(4,tabCount*2),bottomStep=width/bottomSteps;
+ const bottomSteps=Math.max(4,tabCount*2),bottomWidth=width-2*bottomInset,bottomStep=bottomWidth/bottomSteps;
  const leftX=i=>kind==='male'?(i%2===0?-tabDepth:0):(i%2===0?tabDepth:0);
  const rightX=i=>kind==='male'?(i%2===0?width+tabDepth:width):(i%2===0?width-tabDepth:width);
  // Aberturas inferiores: recebem as linguetas da base.
  s.moveTo(0,0);
  for(let i=0;i<bottomSteps;i++){
-  const x0=i*bottomStep,x1=(i+1)*bottomStep;
+  const x0=bottomInset+i*bottomStep,x1=bottomInset+(i+1)*bottomStep;
   if(i%2===0){s.lineTo(x0,0);s.lineTo(x0,tabDepth);s.lineTo(x1,tabDepth);s.lineTo(x1,0);}
   else s.lineTo(x1,0);
  }
@@ -60,8 +60,8 @@ function addFingerBase(parent,width,depth,thickness,count){
  mesh.rotation.x=Math.PI/2;mesh.position.set(0,thickness/2,0);
  mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
-function addJointPanel(parent,width,height,thickness,tabCount,tabDepth,kind,x,y,z,rotation=0,mat=wood){
- const shape=makeEdgeShape(width,height,tabCount,tabDepth,kind);
+function addJointPanel(parent,width,height,thickness,tabCount,tabDepth,kind,x,y,z,rotation=0,mat=wood,bottomInset=0){
+ const shape=makeEdgeShape(width,height,tabCount,tabDepth,kind,bottomInset);
  const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:false,curveSegments:1,steps:1});
  geo.translate(-width/2,-height/2,-thickness/2);
  const mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,z);mesh.rotation.y=rotation;mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
@@ -71,8 +71,8 @@ function rebuild(){
  const {w,d,h,t,n,f}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
  // Frente e traseira: bordas laterais macho; laterais: bordas complementares fêmea.
  const tabDepth=t;
- addJointPanel(model,w,h,t,n,tabDepth,'male',0,h/2,d/2-t/2,0,wood);
- addJointPanel(model,w,h,t,n,tabDepth,'male',0,h/2,-d/2+t/2,0,wood);
+ addJointPanel(model,w,h,t,n,tabDepth,'male',0,h/2,d/2-t/2,0,wood,t);
+ addJointPanel(model,w,h,t,n,tabDepth,'male',0,h/2,-d/2+t/2,0,wood,t);
  addJointPanel(model,d-2*t,h,t,n,tabDepth,'female',w/2-t/2,h/2,0,Math.PI/2,darkWood);
  addJointPanel(model,d-2*t,h,t,n,tabDepth,'female',-w/2+t/2,h/2,0,Math.PI/2,darkWood);
  // A base recebe linguetas nos quatro lados; as paredes têm aberturas inferiores correspondentes.
@@ -83,12 +83,12 @@ function rebuild(){
  $('pieceCount').textContent=$('lid').checked?'6 peças':'5 peças';$('materialText').textContent=`MDF ${t} mm`;updateFingerPreview();
 }
 function updateFingerPreview(){const n=dims().n,target=$('fingerPreview');target.innerHTML='';for(let i=0;i<n;i++){const el=document.createElement('i');if(state.mode==='manual'&&i>=state.manual[$('edge').value].length)el.style.opacity='.22';target.appendChild(el);} $('jointCount').textContent=state.mode==='auto'?`${n} pares de dedos`:`${state.manual[$('edge').value].length} posições salvas`;}
-function panelPath(w,h,n,t,kind,kerf){
- const sideSteps=Math.max(2,n*2),sideStep=h/sideSteps,bottomSteps=Math.max(4,n*2),bottomStep=w/bottomSteps,depth=t;
+function panelPath(w,h,n,t,kind,kerf,bottomInset=0){
+ const sideSteps=Math.max(2,n*2),sideStep=h/sideSteps,bottomSteps=Math.max(4,n*2),bottomWidth=w-2*bottomInset,bottomStep=bottomWidth/bottomSteps,depth=t;
  const L=i=>kind==='male'?(i%2===0?-depth:0):(i%2===0?depth:0);
  const R=i=>kind==='male'?(i%2===0?w+depth:w):(i%2===0?w-depth:w);
  const pts=[[0,0]];
- for(let i=0;i<bottomSteps;i++){const x0=i*bottomStep,x1=(i+1)*bottomStep;if(i%2===0)pts.push([x0,depth],[x1,depth],[x1,0]);else pts.push([x1,0]);}
+ for(let i=0;i<bottomSteps;i++){const x0=bottomInset+i*bottomStep,x1=bottomInset+(i+1)*bottomStep;if(i%2===0)pts.push([x0,depth],[x1,depth],[x1,0]);else pts.push([x1,0]);}
  for(let i=0;i<sideSteps;i++)pts.push([R(i),i*sideStep],[R(i),(i+1)*sideStep]);
  pts.push([0,h]);for(let i=sideSteps-1;i>=0;i--)pts.push([L(i),(i+1)*sideStep],[L(i),i*sideStep]);
  const minX=Math.min(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1]));
@@ -106,7 +106,7 @@ function exportSVG(){
  if($('lid').checked)panels.push(['Tampa',w,d,'plain']);
  let x=10,y=10,rowH=0,maxW=0;const shapes=[];
  for(const [name,pw,ph,kind] of panels){
-  const path=kind==='base'?basePath(pw,ph,n,t,k/2):(kind==='plain'?null:panelPath(pw,ph,n,t,kind,k/2));
+  const inset=(name==='Frente'||name==='Traseira')?t:0;const path=kind==='base'?basePath(pw,ph,n,t,k/2):(kind==='plain'?null:panelPath(pw,ph,n,t,kind,k/2,inset));
   const bw=pw+2*t+2*k,bh=ph+2*t+2*k;
   if(x+bw>580){x=10;y+=rowH+gap;rowH=0;}
   const dPath=path||`M ${k} ${k} H ${(pw+k).toFixed(3)} V ${(ph+k).toFixed(3)} H ${k} Z`;
