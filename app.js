@@ -84,22 +84,30 @@ function rebuild(){
 }
 function updateFingerPreview(){const n=dims().n,target=$('fingerPreview');target.innerHTML='';for(let i=0;i<n;i++){const el=document.createElement('i');if(state.mode==='manual'&&i>=state.manual[$('edge').value].length)el.style.opacity='.22';target.appendChild(el);} $('jointCount').textContent=state.mode==='auto'?`${n} pares de dedos`:`${state.manual[$('edge').value].length} posições salvas`;}
 function panelPath(w,h,n,t,kind,kerf){
- const count=Math.max(2,n*2),step=h/count,depth=t;
+ const sideSteps=Math.max(2,n*2),sideStep=h/sideSteps,bottomSteps=Math.max(4,n*2),bottomStep=w/bottomSteps,depth=t;
  const L=i=>kind==='male'?(i%2===0?-depth:0):(i%2===0?depth:0);
  const R=i=>kind==='male'?(i%2===0?w+depth:w):(i%2===0?w-depth:w);
- const pts=[[0,0],[w,0]];
- for(let i=0;i<count;i++)pts.push([R(i),i*step],[R(i),(i+1)*step]);
- pts.push([0,h]);for(let i=count-1;i>=0;i--)pts.push([L(i),(i+1)*step],[L(i),i*step]);
- const minX=Math.min(...pts.map(p=>p[0])),minY=0;
+ const pts=[[0,0]];
+ for(let i=0;i<bottomSteps;i++){const x0=i*bottomStep,x1=(i+1)*bottomStep;if(i%2===0)pts.push([x0,depth],[x1,depth],[x1,0]);else pts.push([x1,0]);}
+ for(let i=0;i<sideSteps;i++)pts.push([R(i),i*sideStep],[R(i),(i+1)*sideStep]);
+ pts.push([0,h]);for(let i=sideSteps-1;i>=0;i--)pts.push([L(i),(i+1)*sideStep],[L(i),i*sideStep]);
+ const minX=Math.min(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1]));
+ return 'M '+pts.map(p=>`${(p[0]-minX+kerf).toFixed(3)} ${(p[1]-minY+kerf).toFixed(3)}`).join(' L ')+' Z';
+}
+function basePath(w,d,n,t,kerf){
+ const steps=Math.max(4,n*2),pts=[];
+ const edge=(ax,ay,bx,by,nx,ny)=>{for(let i=0;i<steps;i++){const x0=ax+(bx-ax)*i/steps,y0=ay+(by-ay)*i/steps,x1=ax+(bx-ax)*(i+1)/steps,y1=ay+(by-ay)*(i+1)/steps;if(i===0)pts.push([x0,y0]);if(i%2===0)pts.push([x0+nx*t,y0+ny*t],[x1+nx*t,y1+ny*t]);pts.push([x1,y1]);}};
+ edge(0,0,w,0,0,-1);edge(w,0,w,d,1,0);edge(w,d,0,d,0,1);edge(0,d,0,0,-1,0);
+ const minX=Math.min(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1]));
  return 'M '+pts.map(p=>`${(p[0]-minX+kerf).toFixed(3)} ${(p[1]-minY+kerf).toFixed(3)}`).join(' L ')+' Z';
 }
 function exportSVG(){
- const {w,d,h,t,n,k}=dims();const gap=12,panels=[['Frente',w,h,'male'],['Traseira',w,h,'male'],['Lateral esquerda',d-2*t,h,'female'],['Lateral direita',d-2*t,h,'female'],['Base',w-2*t,d-2*t,'plain']];
+ const {w,d,h,t,n,k}=dims();const gap=12,panels=[['Frente',w,h,'male'],['Traseira',w,h,'male'],['Lateral esquerda',d-2*t,h,'female'],['Lateral direita',d-2*t,h,'female'],['Base',w-2*t,d-2*t,'base']];
  if($('lid').checked)panels.push(['Tampa',w,d,'plain']);
  let x=10,y=10,rowH=0,maxW=0;const shapes=[];
  for(const [name,pw,ph,kind] of panels){
-  const path=kind==='plain'?null:panelPath(pw,ph,n,t,kind,k/2);
-  const bw=pw+(kind==='plain'?0:2*t)+2*k,bh=ph+2*k;
+  const path=kind==='base'?basePath(pw,ph,n,t,k/2):(kind==='plain'?null:panelPath(pw,ph,n,t,kind,k/2));
+  const bw=pw+2*t+2*k,bh=ph+2*t+2*k;
   if(x+bw>580){x=10;y+=rowH+gap;rowH=0;}
   const dPath=path||`M ${k} ${k} H ${(pw+k).toFixed(3)} V ${(ph+k).toFixed(3)} H ${k} Z`;
   shapes.push(`<g transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><path d="${dPath}" fill="none" stroke="#ff0000" stroke-width="0.1"/>${$('dimensions').checked?`<text x="0" y="-3" font-size="3" fill="#777">${name} — ${pw} × ${ph} mm</text>`:''}</g>`);
