@@ -16,7 +16,7 @@ let model=new THREE.Group();scene.add(model);
 const wood=new THREE.MeshStandardMaterial({color:0xc99155,roughness:.72,side:THREE.DoubleSide});
 const darkWood=new THREE.MeshStandardMaterial({color:0x9d693a,roughness:.8,side:THREE.DoubleSide});
 function dims(){return {w:clamp(+$('width').value,30,600),d:clamp(+$('depth').value,30,600),h:clamp(+$('height').value,20,500),t:clamp(+$('thickness').value,2,12),n:clamp(+$('count').value,2,16),f:clamp(+$('finger').value,3,30),k:+$('kerf').value};}
-function wallPoints(length,height,count,thickness,fullOnEven){
+function wallPoints(length,height,count,thickness,fullOnEven,bottomOnEven=true){
  const bands=Math.max(4,count*2),bh=height/bands,pts=[];
  const inset=i=>((i%2===0)===fullOnEven)?0:thickness;
  // Rasgos no pé da parede: recebem as linguetas do fundo.
@@ -24,7 +24,7 @@ function wallPoints(length,height,count,thickness,fullOnEven){
  pts.push([inset(0),0],[thickness,0]);
  for(let i=0;i<steps;i++){
   const x0=thickness+i*step,x1=thickness+(i+1)*step;
-  if(i>0&&i<steps-1&&i%2===0)pts.push([x0,0],[x0,thickness],[x1,thickness],[x1,0]);
+  if(i>0&&i<steps-1&&((i%2===0)===bottomOnEven))pts.push([x0,0],[x0,thickness],[x1,thickness],[x1,0]);
   else pts.push([x1,0]);
  }
  pts.push([length-inset(0),0]);
@@ -39,12 +39,12 @@ function wallPoints(length,height,count,thickness,fullOnEven){
  }
  return pts;
 }
-function makeWallShape(length,height,count,thickness,fullOnEven){
- const pts=wallPoints(length,height,count,thickness,fullOnEven),s=new THREE.Shape();
+function makeWallShape(length,height,count,thickness,fullOnEven,bottomOnEven=true){
+ const pts=wallPoints(length,height,count,thickness,fullOnEven,bottomOnEven),s=new THREE.Shape();
  s.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)s.lineTo(pts[i][0],pts[i][1]);s.closePath();return s;
 }
-function addSteppedWall(parent,length,height,thickness,count,fullOnEven,x,y,z,rotation,mat){
- const shape=makeWallShape(length,height,count,thickness,fullOnEven);
+function addSteppedWall(parent,length,height,thickness,count,fullOnEven,x,y,z,rotation,mat,bottomOnEven=true){
+ const shape=makeWallShape(length,height,count,thickness,fullOnEven,bottomOnEven);
  const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:false,curveSegments:1,steps:1});
  geo.translate(-length/2,-height/2,-thickness/2);
  const mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,z);mesh.rotation.y=rotation;
@@ -52,12 +52,12 @@ function addSteppedWall(parent,length,height,thickness,count,fullOnEven,x,y,z,ro
 }
 function basePoints(width,depth,count,thickness){
  const steps=Math.max(4,count*2),pts=[];
- const edge=(ax,ay,bx,by,nx,ny)=>{
+ const edge=(ax,ay,bx,by,nx,ny,tabOnEven=true)=>{
   const dx=(bx-ax)/steps,dy=(by-ay)/steps;
   for(let i=0;i<steps;i++){
    const x0=ax+dx*i,y0=ay+dy*i,x1=ax+dx*(i+1),y1=ay+dy*(i+1);
    if(i===0)pts.push([x0,y0]);
-   if(i>0&&i<steps-1&&i%2===0){
+   if(i>0&&i<steps-1&&((i%2===0)===tabOnEven)){
     pts.push([x0+nx*thickness,y0+ny*thickness],[x1+nx*thickness,y1+ny*thickness]);
    }
    pts.push([x1,y1]);
@@ -65,8 +65,8 @@ function basePoints(width,depth,count,thickness){
  };
  edge(0,0,width,0,0,-1);
  edge(width,0,width,depth,1,0);
- edge(width,depth,0,depth,0,1);
- edge(0,depth,0,0,-1,0);
+ edge(width,depth,0,depth,0,1,false);
+ edge(0,depth,0,0,-1,0,true);
  return pts;
 }
 function addFingerBase(parent,width,depth,thickness,count){
@@ -82,10 +82,10 @@ function rebuild(){
  const {w,d,h,t,n}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
  // Cada canto alterna qual parede atravessa a espessura da outra.
  // Frente/traseira são inteiras nas bandas pares; laterais nas ímpares.
- addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood);
- addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood);
- addSteppedWall(model,d,h,t,n,false,w/2-t/2,h/2,0,Math.PI/2,darkWood);
- addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood);
+ addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,false);
+ addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,true);
+ addSteppedWall(model,d,h,t,n,false,w/2-t/2,h/2,0,-Math.PI/2,darkWood,true);
+ addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,true);
  // Fundo interno plano, apoiado nas quatro paredes. O encaixe inferior será
  // tratado como uma etapa própria, sem fingir que os rasgos atuais são válidos.
  addFingerBase(model,w-2*t,d-2*t,t,n);
@@ -95,8 +95,8 @@ function rebuild(){
  $('pieceCount').textContent=$('lid').checked?'6 peças':'5 peças';$('materialText').textContent=`MDF ${t} mm`;updateFingerPreview();
 }
 function updateFingerPreview(){const n=dims().n,target=$('fingerPreview');target.innerHTML='';for(let i=0;i<n;i++){const el=document.createElement('i');if(state.mode==='manual'&&i>=state.manual[$('edge').value].length)el.style.opacity='.22';target.appendChild(el);} $('jointCount').textContent=state.mode==='auto'?`${n} pares de dedos`:`${state.manual[$('edge').value].length} posições salvas`;}
-function wallPath(length,height,n,t,fullOnEven,kerf){
- const pts=wallPoints(length,height,n,t,fullOnEven);
+function wallPath(length,height,n,t,fullOnEven,kerf,bottomOnEven=true){
+ const pts=wallPoints(length,height,n,t,fullOnEven,bottomOnEven);
  const minX=Math.min(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1]));
  return 'M '+pts.map(p=>`${(p[0]-minX+kerf).toFixed(3)} ${(p[1]-minY+kerf).toFixed(3)}`).join(' L ')+' Z';
 }
@@ -107,10 +107,10 @@ function basePath(width,depth,count,thickness,kerf){
 function exportSVG(){
  const {w,d,h,t,n,k}=dims(),gap=12,kerf=k/2;
  const panels=[
-  ['Frente',w,h,wallPath(w,h,n,t,true,kerf)],
-  ['Traseira',w,h,wallPath(w,h,n,t,true,kerf)],
-  ['Lateral esquerda',d,h,wallPath(d,h,n,t,false,kerf)],
-  ['Lateral direita',d,h,wallPath(d,h,n,t,false,kerf)],
+  ['Frente',w,h,wallPath(w,h,n,t,true,kerf,false)],
+  ['Traseira',w,h,wallPath(w,h,n,t,true,kerf,true)],
+  ['Lateral esquerda',d,h,wallPath(d,h,n,t,false,kerf,true)],
+  ['Lateral direita',d,h,wallPath(d,h,n,t,false,kerf,true)],
   ['Fundo',w-2*t,d-2*t,basePath(w-2*t,d-2*t,n,t,kerf)]
  ];
  if($('lid').checked)panels.push(['Tampa',w,d,null]);
