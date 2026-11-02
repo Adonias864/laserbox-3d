@@ -12,7 +12,7 @@ scene.add(new THREE.HemisphereLight(0xc8ddf5,0x342719,2));
 const key=new THREE.DirectionalLight(0xffe1b5,3);key.position.set(150,240,180);key.castShadow=true;scene.add(key);
 const fill=new THREE.DirectionalLight(0x86b9ee,1.2);fill.position.set(-160,80,-120);scene.add(fill);
 const grid=new THREE.GridHelper(500,25,0x3b5069,0x25374b);grid.position.y=-1;scene.add(grid);
-let model=new THREE.Group();scene.add(model);
+let model=new THREE.Group();scene.add(model);\nlet lidAssembly=null,lidOpen=false,lidTargetY=0;
 const wood=new THREE.MeshStandardMaterial({color:0xc99155,roughness:.72,side:THREE.DoubleSide});
 const darkWood=new THREE.MeshStandardMaterial({color:0x9d693a,roughness:.8,side:THREE.DoubleSide});
 function dims(){return {w:clamp(+$('width').value,30,600),d:clamp(+$('depth').value,30,600),h:clamp(+$('height').value,20,500),t:clamp(+$('thickness').value,2,12),n:clamp(+$('count').value,2,16),f:clamp(+$('finger').value,3,30),k:+$('kerf').value};}
@@ -80,31 +80,32 @@ function addFingerBase(parent,width,depth,thickness,count){
 }
 function addPanel(parent,w,h,depth,x,y,z,mat=wood){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,depth),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
 function addLid(parent,type,w,d,h,t,gap){
- if(type==='none')return 0;
- if(type==='flat'){addPanel(parent,w,t,d,0,h+t/2,0,wood);return 1;}
+ if(type==='none')return {pieces:0,group:null};
+ const group=new THREE.Group();
+ if(type==='flat'){addPanel(group,w,t,d,0,h+t/2,0,wood);parent.add(group);return {pieces:1,group};}
  if(type==='cap'){
-  addPanel(parent,w+2*t+2*gap,t,d+2*t+2*gap,0,h+t/2,0,wood);
+  addPanel(group,w+2*t+2*gap,t,d+2*t+2*gap,0,h+t/2,0,wood);
   const skirtY=h-t/2;
-  addPanel(parent,w+2*t+2*gap,t,t,0,skirtY,-(d+t+2*gap)/2,wood);
-  addPanel(parent,w+2*t+2*gap,t,t,0,skirtY,(d+t+2*gap)/2,wood);
-  addPanel(parent,t,t,d+2*gap+2*t,-(w+t+2*gap)/2,skirtY,0,wood);
-  addPanel(parent,t,t,d+2*gap+2*t,(w+t+2*gap)/2,skirtY,0,wood);
-  return 5;
+  addPanel(group,w+2*t+2*gap,t,t,0,skirtY,-(d+t+2*gap)/2,wood);
+  addPanel(group,w+2*t+2*gap,t,t,0,skirtY,(d+t+2*gap)/2,wood);
+  addPanel(group,t,t,d+2*gap+2*t,-(w+t+2*gap)/2,skirtY,0,wood);
+  addPanel(group,t,t,d+2*gap+2*t,(w+t+2*gap)/2,skirtY,0,wood);
+  parent.add(group);return {pieces:5,group};
  }
  if(type==='inset'){
   const iw=Math.max(10,w-2*t-2*gap),id=Math.max(10,d-2*t-2*gap);
-  addPanel(parent,iw,t,id,0,h+t/2,0,wood);
+  addPanel(group,iw,t,id,0,h+t/2,0,wood);
   const lipY=h-t/2;
-  addPanel(parent,iw,t,t,0,lipY,-(id-t)/2,wood);
-  addPanel(parent,iw,t,t,0,lipY,(id-t)/2,wood);
-  addPanel(parent,t,t,Math.max(1,id-2*t),-(iw-t)/2,lipY,0,wood);
-  addPanel(parent,t,t,Math.max(1,id-2*t),(iw-t)/2,lipY,0,wood);
-  return 5;
+  addPanel(group,iw,t,t,0,lipY,-(id-t)/2,wood);
+  addPanel(group,iw,t,t,0,lipY,(id-t)/2,wood);
+  addPanel(group,t,t,Math.max(1,id-2*t),-(iw-t)/2,lipY,0,wood);
+  addPanel(group,t,t,Math.max(1,id-2*t),(iw-t)/2,lipY,0,wood);
+  parent.add(group);return {pieces:5,group};
  }
- return 0;
+ return {pieces:0,group:null};
 }
 function rebuild(){
- const {w,d,h,t,n}=dims();const lidType=$('lidType').value,lidGap=+$('lidGap').value;scene.remove(model);model=new THREE.Group();scene.add(model);
+ const {w,d,h,t,n}=dims();const lidType=$('lidType').value,lidGap=+$('lidGap').value;scene.remove(model);model=new THREE.Group();scene.add(model);lidAssembly=null;lidOpen=false;lidTargetY=0;$('lidMoveBtn').disabled=lidType==='none';$('lidMoveBtn').textContent='↑ Retirar tampa';
  // Os encaixes verticais dos cantos alternam entre paredes frontais e laterais.
  // Os rasgos inferiores usam uma paridade local comum nas quatro paredes.
  // Cada borda usa 2*n+1 segmentos. Os n dentes ficam centralizados,
@@ -116,7 +117,7 @@ function rebuild(){
  addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,false);
  // Fundo com dentes dimensionados pelo mesmo passo dos rasgos inferiores das paredes.
  addFingerBase(model,w-2*t,d-2*t,t,n);
- const lidPieces=addLid(model,lidType,w,d,h,t,lidGap);
+ const lidResult=addLid(model,lidType,w,d,h,t,lidGap);lidAssembly=lidResult.group;const lidPieces=lidResult.pieces;
  model.traverse(o=>{if(o.isMesh)o.material.wireframe=state.wire;});
  $('dimensionText').textContent=`${w} × ${d} × ${h} mm`;
  $('pieceCount').textContent=`${5+lidPieces} peças`;$('materialText').textContent=`MDF ${t} mm`;updateFingerPreview();
@@ -166,7 +167,7 @@ function exportSVG(){
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600);}
 function resize(){const el=$('viewport'),w=el.clientWidth,h=el.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);}
 const ro=new ResizeObserver(resize);ro.observe($('viewport'));resize();
-function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}animate();
+function animate(){requestAnimationFrame(animate);if(lidAssembly){lidAssembly.position.y+=(lidTargetY-lidAssembly.position.y)*0.12;if(Math.abs(lidTargetY-lidAssembly.position.y)<0.03)lidAssembly.position.y=lidTargetY;}controls.update();renderer.render(scene,camera);}animate();
 ['width','depth','height','thickness','count','finger','kerf','lidGap'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='count')$('countOut').textContent=$('count').value;if(id==='finger')$('fingerOut').textContent=$('finger').value;if(id==='kerf')$('kerfOut').textContent=Number($('kerf').value).toLocaleString('pt-BR');if(id==='lidGap')$('lidGapOut').textContent=Number($('lidGap').value).toLocaleString('pt-BR');rebuild();}));
 $('lidType').addEventListener('change',rebuild);
 $('start').addEventListener('input',()=>$('startOut').textContent=$('start').value);
@@ -174,7 +175,7 @@ document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('clic
 $('edge').addEventListener('change',updateFingerPreview);
 $('addFinger').addEventListener('click',()=>{const edge=$('edge').value;state.manual[edge].push(+$('start').value);updateFingerPreview();toast('Posição registrada. A edição manual geométrica será habilitada na próxima etapa.');});
 $('clearFinger').addEventListener('click',()=>{state.manual[$('edge').value]=[];updateFingerPreview();toast('Posições salvas limpas.');});
-$('exportBtn').addEventListener('click',exportSVG);
+$('exportBtn').addEventListener('click',exportSVG);\n$('lidMoveBtn').addEventListener('click',()=>{if(!lidAssembly)return;lidOpen=!lidOpen;lidTargetY=lidOpen?Math.max(35,dims().h*0.8):0;$('lidMoveBtn').textContent=lidOpen?'↓ Recolocar tampa':'↑ Retirar tampa';});
 $('resetView').addEventListener('click',()=>{camera.position.set(230,180,250);controls.target.set(0,30,0);controls.update();});
 $('wireBtn').addEventListener('click',()=>{state.wire=!state.wire;model.traverse(o=>{if(o.isMesh)o.material.wireframe=state.wire;});});
 rebuild();
