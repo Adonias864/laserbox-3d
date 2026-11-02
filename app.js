@@ -16,11 +16,12 @@ let model=new THREE.Group();scene.add(model);
 const wood=new THREE.MeshStandardMaterial({color:0xc99155,roughness:.72,side:THREE.DoubleSide});
 const darkWood=new THREE.MeshStandardMaterial({color:0x9d693a,roughness:.8,side:THREE.DoubleSide});
 function dims(){return {w:clamp(+$('width').value,30,600),d:clamp(+$('depth').value,30,600),h:clamp(+$('height').value,20,500),t:clamp(+$('thickness').value,2,12),n:clamp(+$('count').value,2,16),f:clamp(+$('finger').value,3,30),k:+$('kerf').value};}
+function fingerSteps(count){return Math.max(5,Math.round(count)*2+1);}
 function wallPoints(length,height,count,thickness,fullOnEven,bottomOnEven=true){
  const bands=Math.max(4,count*2),bh=height/bands,pts=[];
  const inset=i=>((i%2===0)===fullOnEven)?0:thickness;
  // Rasgos no pé da parede: recebem as linguetas do fundo.
- const steps=Math.max(4,count*2),usable=length-2*thickness,step=usable/steps;
+ const steps=fingerSteps(count),usable=length-2*thickness,step=usable/steps;
  pts.push([inset(0),0],[thickness,0]);
  for(let i=0;i<steps;i++){
   const x0=thickness+i*step,x1=thickness+(i+1)*step;
@@ -51,7 +52,7 @@ function addSteppedWall(parent,length,height,thickness,count,fullOnEven,x,y,z,ro
  mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
 function basePoints(width,depth,count,thickness){
- const steps=Math.max(4,count*2),pts=[];
+ const steps=fingerSteps(count),pts=[];
  const edge=(ax,ay,bx,by,nx,ny,tabOnEven=true)=>{
   const dx=(bx-ax)/steps,dy=(by-ay)/steps;
   for(let i=0;i<steps;i++){
@@ -65,7 +66,7 @@ function basePoints(width,depth,count,thickness){
  };
  edge(0,0,width,0,0,-1);
  edge(width,0,width,depth,1,0);
- edge(width,depth,0,depth,0,1,false);
+ edge(width,depth,0,depth,0,1,true);
  edge(0,depth,0,0,-1,0,true);
  return pts;
 }
@@ -82,14 +83,15 @@ function rebuild(){
  const {w,d,h,t,n}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
  // Os encaixes verticais dos cantos alternam entre paredes frontais e laterais.
  // Os rasgos inferiores usam uma paridade local comum nas quatro paredes.
- // A alternância acompanha o sentido físico de cada borda da base:
- // Todas as paredes usam a mesma paridade local: a orientação espacial já é resolvida pelo sentido das bordas da base.
+ // Cada borda usa 2*n+1 segmentos: isso gera exatamente n dentes/rasgos,
+ // distribuídos por todo o comprimento útil. A base e as paredes compartilham o mesmo passo.
+ // A borda traseira é percorrida no sentido inverso; com número ímpar de segmentos,
+ // a paridade permanece alinhada e também usa true.
  addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,true);
  addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,true);
  addSteppedWall(model,d,h,t,n,false,w/2-t/2,h/2,0,-Math.PI/2,darkWood,true);
  addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,true);
- // Fundo interno plano, apoiado nas quatro paredes. O encaixe inferior será
- // tratado como uma etapa própria, sem fingir que os rasgos atuais são válidos.
+ // Fundo com dentes dimensionados pelo mesmo passo dos rasgos inferiores das paredes.
  addFingerBase(model,w-2*t,d-2*t,t,n);
  if($('lid').checked)addPanel(model,w,t,d,0,h+t/2,0,wood);
  model.traverse(o=>{if(o.isMesh)o.material.wireframe=state.wire;});
