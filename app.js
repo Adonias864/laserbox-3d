@@ -12,7 +12,8 @@ scene.add(new THREE.HemisphereLight(0xc8ddf5,0x342719,2));
 const key=new THREE.DirectionalLight(0xffe1b5,3);key.position.set(150,240,180);key.castShadow=true;scene.add(key);
 const fill=new THREE.DirectionalLight(0x86b9ee,1.2);fill.position.set(-160,80,-120);scene.add(fill);
 const grid=new THREE.GridHelper(500,25,0x3b5069,0x25374b);grid.position.y=-1;scene.add(grid);
-let model=new THREE.Group();scene.add(model);\nlet lidAssembly=null,lidOpen=false,lidTargetY=0;
+let model=new THREE.Group();scene.add(model);
+let lidAssembly=null,lidOpen=false,lidTargetY=0;
 const wood=new THREE.MeshStandardMaterial({color:0xc99155,roughness:.72,side:THREE.DoubleSide});
 const darkWood=new THREE.MeshStandardMaterial({color:0x9d693a,roughness:.8,side:THREE.DoubleSide});
 function dims(){return {w:clamp(+$('width').value,30,600),d:clamp(+$('depth').value,30,600),h:clamp(+$('height').value,20,500),t:clamp(+$('thickness').value,2,12),n:clamp(+$('count').value,2,16),f:clamp(+$('finger').value,3,30),k:+$('kerf').value};}
@@ -161,7 +162,9 @@ function exportSVG(){
   shapes.push(`<g transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><path d="${dPath}" fill="none" stroke="#ff0000" stroke-width="0.1"/>${$('dimensions').checked?`<text x="0" y="-3" font-size="3" fill="#777">${name} — ${pw} × ${ph} mm</text>`:''}</g>`);
   x+=bw+gap;rowH=Math.max(rowH,bh);maxW=Math.max(maxW,x);
  }
- const totalH=y+rowH+10,svg=`<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${maxW.toFixed(2)}mm" height="${totalH.toFixed(2)}mm" viewBox="0 0 ${maxW.toFixed(2)} ${totalH.toFixed(2)}">${shapes.join('\n')}</svg>`;
+ const totalH=y+rowH+10,svg=`<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${maxW.toFixed(2)}mm" height="${totalH.toFixed(2)}mm" viewBox="0 0 ${maxW.toFixed(2)} ${totalH.toFixed(2)}">${shapes.join('
+')}</svg>`;
  const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='laserbox-projeto.svg';a.click();URL.revokeObjectURL(url);toast('SVG exportado. Confira as peças antes do corte.');
 }
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600);}
@@ -175,7 +178,8 @@ document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('clic
 $('edge').addEventListener('change',updateFingerPreview);
 $('addFinger').addEventListener('click',()=>{const edge=$('edge').value;state.manual[edge].push(+$('start').value);updateFingerPreview();toast('Posição registrada. A edição manual geométrica será habilitada na próxima etapa.');});
 $('clearFinger').addEventListener('click',()=>{state.manual[$('edge').value]=[];updateFingerPreview();toast('Posições salvas limpas.');});
-$('exportBtn').addEventListener('click',exportSVG);\n$('lidMoveBtn').addEventListener('click',()=>{if(!lidAssembly)return;lidOpen=!lidOpen;lidTargetY=lidOpen?Math.max(35,dims().h*0.8):0;$('lidMoveBtn').textContent=lidOpen?'↓ Recolocar tampa':'↑ Retirar tampa';});
+$('exportBtn').addEventListener('click',exportSVG);
+$('lidMoveBtn').addEventListener('click',()=>{if(!lidAssembly)return;lidOpen=!lidOpen;lidTargetY=lidOpen?Math.max(35,dims().h*0.8):0;$('lidMoveBtn').textContent=lidOpen?'↓ Recolocar tampa':'↑ Retirar tampa';});
 $('resetView').addEventListener('click',()=>{camera.position.set(230,180,250);controls.target.set(0,30,0);controls.update();});
 $('wireBtn').addEventListener('click',()=>{state.wire=!state.wire;model.traverse(o=>{if(o.isMesh)o.material.wireframe=state.wire;});});
 rebuild();
