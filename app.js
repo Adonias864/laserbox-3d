@@ -80,25 +80,33 @@ function addFingerBase(parent,width,depth,thickness,count){
  mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
 function addPanel(parent,w,h,depth,x,y,z,mat=wood){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,depth),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
-function lidSkirtPoints(length,height,thickness,count,phase){
- // Mesmo padrão das laterais: 2*n faixas e dentes alternados nas duas pontas.
- const bands=Math.max(4,count*2),bh=height/bands,pts=[[0,0],[length,0]];
+function lidSkirtPoints(length,height,thickness,count,phase,bottomOnEven=phase){
+ // Borda inferior quadriculada em toda a extensão, com dentes alternados.
+ // As laterais verticais mantêm a alternância dos encaixes dos cantos.
+ const bands=Math.max(4,count*2),bh=height/bands,pts=[[0,0],[thickness,0]];
+ const steps=fingerSteps(count),usable=length-2*thickness,step=usable/steps;
+ for(let i=0;i<steps;i++){
+  const x0=thickness+i*step,x1=thickness+(i+1)*step;
+  if(i>0&&i<steps-1&&((i%2===0)===bottomOnEven))pts.push([x0,-thickness],[x1,-thickness],[x1,0]);
+  else pts.push([x1,0]);
+ }
+ pts.push([length,0]);
  const inset=i=>((i%2===0)===phase)?0:thickness;
  for(let i=0;i<bands;i++)pts.push([length-inset(i),(i+1)*bh]);
  pts.push([inset(bands-1),height]);
  for(let i=bands-1;i>=0;i--)pts.push([inset(i),i*bh]);
  return pts;
 }
-function addLidSkirt(parent,length,height,thickness,count,phase,x,y,z,rotation,mat){
- const pts=lidSkirtPoints(length,height,thickness,count,phase),shape=new THREE.Shape();
+function addLidSkirt(parent,length,height,thickness,count,phase,x,y,z,rotation,mat,bottomOnEven=phase){
+ const pts=lidSkirtPoints(length,height,thickness,count,phase,bottomOnEven),shape=new THREE.Shape();
  shape.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)shape.lineTo(pts[i][0],pts[i][1]);shape.closePath();
  const geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,bevelEnabled:false,curveSegments:1,steps:1});
  geo.translate(-length/2,-height/2,-thickness/2);
  const mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,z);mesh.rotation.y=rotation;
  mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
-function lidSkirtPath(length,height,thickness,count,phase,kerf){
- const pts=lidSkirtPoints(length,height,thickness,count,phase),minX=Math.min(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1]));
+function lidSkirtPath(length,height,thickness,count,phase,kerf,bottomOnEven=phase){
+ const pts=lidSkirtPoints(length,height,thickness,count,phase,bottomOnEven),minX=Math.min(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1]));
  return 'M '+pts.map(p=>`${(p[0]-minX+kerf).toFixed(3)} ${(p[1]-minY+kerf).toFixed(3)}`).join(' L ')+' Z';
 }
 
@@ -110,11 +118,11 @@ function addLid(parent,type,w,d,h,t,gap,n){
   const lidW=w+2*t+2*gap,lidD=d+2*t+2*gap,skirtH=clamp(+$('lidSkirtHeight').value,5,50);
   addPanel(group,lidW,t,lidD,0,h+t/2,0,wood);
   const skirtY=h-skirtH/2;
-  // Quatro abas com dentes alternados nas extremidades para travar os cantos.
-  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,-(d/2+t/2+gap),0,wood);
-  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,(d/2+t/2+gap),0,wood);
-  addLidSkirt(group,lidD,skirtH,t,n,true,-(w/2+t/2+gap),skirtY,0,-Math.PI/2,wood);
-  addLidSkirt(group,lidD,skirtH,t,n,true,(w/2+t/2+gap),skirtY,0,Math.PI/2,wood);
+  // Quatro abas com borda inferior quadriculada em toda a extensão e cantos alternados.
+  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,-(d/2+t/2+gap),0,wood,false);
+  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,(d/2+t/2+gap),0,wood,true);
+  addLidSkirt(group,lidD,skirtH,t,n,true,-(w/2+t/2+gap),skirtY,0,-Math.PI/2,wood,true);
+  addLidSkirt(group,lidD,skirtH,t,n,true,(w/2+t/2+gap),skirtY,0,Math.PI/2,wood,false);
   parent.add(group);return {pieces:5,group};
  }
  if(type==='inset'){
@@ -171,10 +179,10 @@ function exportSVG(){
  if(lidType==='cap'){
   const lidW=w+2*t+2*lidGap,lidD=d+2*t+2*lidGap,skirtH=clamp(+$('lidSkirtHeight').value,5,50);
   rect('Tampa sobreposta',lidW,lidD);
-  panels.push(['Aba frontal',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,false,kerf)]);
-  panels.push(['Aba traseira',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,true,kerf)]);
-  panels.push(['Aba esquerda',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,true,kerf)]);
-  panels.push(['Aba direita',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,false,kerf)]);
+  panels.push(['Aba frontal',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,false,kerf,false)]);
+  panels.push(['Aba traseira',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,true,kerf,true)]);
+  panels.push(['Aba esquerda',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,true,kerf,true)]);
+  panels.push(['Aba direita',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,false,kerf,false)]);
  }
  if(lidType==='inset'){
   const iw=Math.max(10,w-2*t-2*lidGap),id=Math.max(10,d-2*t-2*lidGap);
