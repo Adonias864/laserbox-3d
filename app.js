@@ -69,13 +69,17 @@ function addJointPanel(parent,width,height,thickness,tabCount,tabDepth,kind,x,y,
 function addPanel(parent,w,h,depth,x,y,z,mat=wood){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,depth),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
 function rebuild(){
  const {w,d,h,t,n,f}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
- // Frente e traseira: bordas laterais macho; laterais: bordas complementares fêmea.
+ // Geometria de caixa com paredes encaixadas por espessura:
+ // frente/traseira ficam entre as laterais; as laterais recebem as linguetas
+ // das frentes nas suas extremidades. Todas as paredes têm rasgos inferiores
+ // alinhados com as linguetas do fundo.
  const tabDepth=t;
- addJointPanel(model,w,h,t,n,tabDepth,'male',0,h/2,d/2-t/2,0,wood,t);
- addJointPanel(model,w,h,t,n,tabDepth,'male',0,h/2,-d/2+t/2,0,wood,t);
- addJointPanel(model,d-2*t,h,t,n,tabDepth,'female',w/2-t/2,h/2,0,Math.PI/2,darkWood);
- addJointPanel(model,d-2*t,h,t,n,tabDepth,'female',-w/2+t/2,h/2,0,Math.PI/2,darkWood);
- // A base recebe linguetas nos quatro lados; as paredes têm aberturas inferiores correspondentes.
+ const frontWidth=w-2*t;
+ addJointPanel(model,frontWidth,h,t,n,tabDepth,'male',0,h/2,d/2-t/2,0,wood,t);
+ addJointPanel(model,frontWidth,h,t,n,tabDepth,'male',0,h/2,-d/2+t/2,0,wood,t);
+ addJointPanel(model,d,h,t,n,tabDepth,'female',w/2-t/2,h/2,0,Math.PI/2,darkWood,t);
+ addJointPanel(model,d,h,t,n,tabDepth,'female',-w/2+t/2,h/2,0,Math.PI/2,darkWood,t);
+ // O fundo ocupa o vão interno e trava nas quatro paredes.
  addFingerBase(model,w-2*t,d-2*t,t,n);
  if($('lid').checked)addPanel(model,w,t,d,0,h+t/2,0,wood);
  model.traverse(o=>{if(o.isMesh)o.material.wireframe=state.wire;});
@@ -102,11 +106,11 @@ function basePath(w,d,n,t,kerf){
  return 'M '+pts.map(p=>`${(p[0]-minX+kerf).toFixed(3)} ${(p[1]-minY+kerf).toFixed(3)}`).join(' L ')+' Z';
 }
 function exportSVG(){
- const {w,d,h,t,n,k}=dims();const gap=12,panels=[['Frente',w,h,'male'],['Traseira',w,h,'male'],['Lateral esquerda',d-2*t,h,'female'],['Lateral direita',d-2*t,h,'female'],['Base',w-2*t,d-2*t,'base']];
+ const {w,d,h,t,n,k}=dims();const gap=12,panels=[['Frente',w-2*t,h,'male'],['Traseira',w-2*t,h,'male'],['Lateral esquerda',d,h,'female'],['Lateral direita',d,h,'female'],['Base',w-2*t,d-2*t,'base']];
  if($('lid').checked)panels.push(['Tampa',w,d,'plain']);
  let x=10,y=10,rowH=0,maxW=0;const shapes=[];
  for(const [name,pw,ph,kind] of panels){
-  const inset=(name==='Frente'||name==='Traseira')?t:0;const path=kind==='base'?basePath(pw,ph,n,t,k/2):(kind==='plain'?null:panelPath(pw,ph,n,t,kind,k/2,inset));
+  const inset=t;const path=kind==='base'?basePath(pw,ph,n,t,k/2):(kind==='plain'?null:panelPath(pw,ph,n,t,kind,k/2,inset));
   const bw=pw+2*t+2*k,bh=ph+2*t+2*k;
   if(x+bw>580){x=10;y+=rowH+gap;rowH=0;}
   const dPath=path||`M ${k} ${k} H ${(pw+k).toFixed(3)} V ${(ph+k).toFixed(3)} H ${k} Z`;
