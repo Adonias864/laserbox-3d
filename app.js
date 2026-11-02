@@ -111,10 +111,10 @@ function addLid(parent,type,w,d,h,t,gap,n){
   addPanel(group,lidW,t,lidD,0,h+t/2,0,wood);
   const skirtY=h-skirtH/2;
   // Quatro abas com dentes alternados nas extremidades para travar os cantos.
-  addLidSkirt(group,lidW,skirtH,t,n,true,0,skirtY,-(d/2+t/2+gap),0,wood);
-  addLidSkirt(group,lidW,skirtH,t,n,true,0,skirtY,(d/2+t/2+gap),0,wood);
-  addLidSkirt(group,lidD,skirtH,t,n,false,-(w/2+t/2+gap),skirtY,0,-Math.PI/2,wood);
-  addLidSkirt(group,lidD,skirtH,t,n,false,(w/2+t/2+gap),skirtY,0,Math.PI/2,wood);
+  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,-(d/2+t/2+gap),0,wood);
+  addLidSkirt(group,lidW,skirtH,t,n,false,0,skirtY,(d/2+t/2+gap),0,wood);
+  addLidSkirt(group,lidD,skirtH,t,n,true,-(w/2+t/2+gap),skirtY,0,-Math.PI/2,wood);
+  addLidSkirt(group,lidD,skirtH,t,n,true,(w/2+t/2+gap),skirtY,0,Math.PI/2,wood);
   parent.add(group);return {pieces:5,group};
  }
  if(type==='inset'){
@@ -171,9 +171,9 @@ function exportSVG(){
  if(lidType==='cap'){
   const lidW=w+2*t+2*lidGap,lidD=d+2*t+2*lidGap,skirtH=clamp(+$('lidSkirtHeight').value,5,50);
   rect('Tampa sobreposta',lidW,lidD);
-  panels.push(['Aba frontal',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,true,kerf)]);
+  panels.push(['Aba frontal',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,false,kerf)]);
   panels.push(['Aba traseira',lidW,skirtH,lidSkirtPath(lidW,skirtH,t,n,true,kerf)]);
-  panels.push(['Aba esquerda',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,false,kerf)]);
+  panels.push(['Aba esquerda',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,true,kerf)]);
   panels.push(['Aba direita',lidD,skirtH,lidSkirtPath(lidD,skirtH,t,n,false,kerf)]);
  }
  if(lidType==='inset'){
