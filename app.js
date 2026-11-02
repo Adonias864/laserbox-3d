@@ -79,8 +79,32 @@ function addFingerBase(parent,width,depth,thickness,count){
  mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
 function addPanel(parent,w,h,depth,x,y,z,mat=wood){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,depth),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
+function addLid(parent,type,w,d,h,t,gap){
+ if(type==='none')return 0;
+ if(type==='flat'){addPanel(parent,w,t,d,0,h+t/2,0,wood);return 1;}
+ if(type==='cap'){
+  addPanel(parent,w+2*t+2*gap,t,d+2*t+2*gap,0,h+t/2,0,wood);
+  const skirtY=h-t/2;
+  addPanel(parent,w+2*t+2*gap,t,t,0,skirtY,-(d+t+2*gap)/2,wood);
+  addPanel(parent,w+2*t+2*gap,t,t,0,skirtY,(d+t+2*gap)/2,wood);
+  addPanel(parent,t,t,d+2*gap+2*t,-(w+t+2*gap)/2,skirtY,0,wood);
+  addPanel(parent,t,t,d+2*gap+2*t,(w+t+2*gap)/2,skirtY,0,wood);
+  return 5;
+ }
+ if(type==='inset'){
+  const iw=Math.max(10,w-2*t-2*gap),id=Math.max(10,d-2*t-2*gap);
+  addPanel(parent,iw,t,id,0,h+t/2,0,wood);
+  const lipY=h-t/2;
+  addPanel(parent,iw,t,t,0,lipY,-(id-t)/2,wood);
+  addPanel(parent,iw,t,t,0,lipY,(id-t)/2,wood);
+  addPanel(parent,t,t,Math.max(1,id-2*t),-(iw-t)/2,lipY,0,wood);
+  addPanel(parent,t,t,Math.max(1,id-2*t),(iw-t)/2,lipY,0,wood);
+  return 5;
+ }
+ return 0;
+}
 function rebuild(){
- const {w,d,h,t,n}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
+ const {w,d,h,t,n}=dims();const lidType=$('lidType').value,lidGap=+$('lidGap').value;scene.remove(model);model=new THREE.Group();scene.add(model);
  // Os encaixes verticais dos cantos alternam entre paredes frontais e laterais.
  // Os rasgos inferiores usam uma paridade local comum nas quatro paredes.
  // Cada borda usa 2*n+1 segmentos. Os n dentes ficam centralizados,
@@ -92,10 +116,10 @@ function rebuild(){
  addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,false);
  // Fundo com dentes dimensionados pelo mesmo passo dos rasgos inferiores das paredes.
  addFingerBase(model,w-2*t,d-2*t,t,n);
- if($('lid').checked)addPanel(model,w,t,d,0,h+t/2,0,wood);
+ const lidPieces=addLid(model,lidType,w,d,h,t,lidGap);
  model.traverse(o=>{if(o.isMesh)o.material.wireframe=state.wire;});
  $('dimensionText').textContent=`${w} × ${d} × ${h} mm`;
- $('pieceCount').textContent=$('lid').checked?'6 peças':'5 peças';$('materialText').textContent=`MDF ${t} mm`;updateFingerPreview();
+ $('pieceCount').textContent=`${5+lidPieces} peças`;$('materialText').textContent=`MDF ${t} mm`;updateFingerPreview();
 }
 function updateFingerPreview(){const n=dims().n,target=$('fingerPreview');target.innerHTML='';for(let i=0;i<n;i++){const el=document.createElement('i');if(state.mode==='manual'&&i>=state.manual[$('edge').value].length)el.style.opacity='.22';target.appendChild(el);} $('jointCount').textContent=state.mode==='auto'?`${n} pares de dedos`:`${state.manual[$('edge').value].length} posições salvas`;}
 function wallPath(length,height,n,t,fullOnEven,kerf,bottomOnEven=true){
@@ -108,7 +132,7 @@ function basePath(width,depth,count,thickness,kerf){
  return 'M '+pts.map(p=>`${(p[0]-minX+kerf).toFixed(3)} ${(p[1]-minY+kerf).toFixed(3)}`).join(' L ')+' Z';
 }
 function exportSVG(){
- const {w,d,h,t,n,k}=dims(),gap=12,kerf=k/2;
+ const {w,d,h,t,n,k}=dims(),gap=12,kerf=k/2,lidType=$('lidType').value,lidGap=+$('lidGap').value;
  const panels=[
   ['Frente',w,h,wallPath(w,h,n,t,true,kerf,false)],
   ['Traseira',w,h,wallPath(w,h,n,t,true,kerf,true)],
@@ -116,7 +140,18 @@ function exportSVG(){
   ['Lateral direita',d,h,wallPath(d,h,n,t,false,kerf,true)],
   ['Fundo',w-2*t,d-2*t,basePath(w-2*t,d-2*t,n,t,kerf)]
  ];
- if($('lid').checked)panels.push(['Tampa',w,d,null]);
+ const rect=(name,pw,ph)=>panels.push([name,pw,ph,null]);
+ if(lidType==='flat')rect('Tampa plana',w,d);
+ if(lidType==='cap'){
+  rect('Tampa sobreposta',w+2*t+2*lidGap,d+2*t+2*lidGap);
+  rect('Aba frontal',w+2*t+2*lidGap,t);rect('Aba traseira',w+2*t+2*lidGap,t);
+  rect('Aba esquerda',d+2*lidGap+2*t,t);rect('Aba direita',d+2*lidGap+2*t,t);
+ }
+ if(lidType==='inset'){
+  const iw=Math.max(10,w-2*t-2*lidGap),id=Math.max(10,d-2*t-2*lidGap);
+  rect('Tampa interna',iw,id);rect('Aba frontal interna',iw,t);rect('Aba traseira interna',iw,t);
+  rect('Aba esquerda interna',Math.max(1,id-2*t),t);rect('Aba direita interna',Math.max(1,id-2*t),t);
+ }
  let x=10,y=10,rowH=0,maxW=0;const shapes=[];
  for(const [name,pw,ph,path] of panels){
   const bw=pw+2*kerf+4,bh=ph+2*kerf+4;
@@ -132,7 +167,8 @@ function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('sho
 function resize(){const el=$('viewport'),w=el.clientWidth,h=el.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);}
 const ro=new ResizeObserver(resize);ro.observe($('viewport'));resize();
 function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}animate();
-['width','depth','height','thickness','count','finger','kerf','lid'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='count')$('countOut').textContent=$('count').value;if(id==='finger')$('fingerOut').textContent=$('finger').value;if(id==='kerf')$('kerfOut').textContent=Number($('kerf').value).toLocaleString('pt-BR');rebuild();}));
+['width','depth','height','thickness','count','finger','kerf','lidGap'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='count')$('countOut').textContent=$('count').value;if(id==='finger')$('fingerOut').textContent=$('finger').value;if(id==='kerf')$('kerfOut').textContent=Number($('kerf').value).toLocaleString('pt-BR');if(id==='lidGap')$('lidGapOut').textContent=Number($('lidGap').value).toLocaleString('pt-BR');rebuild();}));
+$('lidType').addEventListener('change',rebuild);
 $('start').addEventListener('input',()=>$('startOut').textContent=$('start').value);
 document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{state.mode=btn.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b===btn));$('manualTools').classList.toggle('hidden',state.mode!=='manual');updateFingerPreview();}));
 $('edge').addEventListener('change',updateFingerPreview);
