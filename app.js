@@ -102,7 +102,7 @@ function lidSkirtPath(length,height,thickness,count,phase,kerf){
  return 'M '+pts.map(p=>`${(p[0]-minX+kerf).toFixed(3)} ${(p[1]-minY+kerf).toFixed(3)}`).join(' L ')+' Z';
 }
 
-function addLid(parent,type,w,d,h,t,gap){
+function addLid(parent,type,w,d,h,t,gap,n){
  if(type==='none')return {pieces:0,group:null};
  const group=new THREE.Group();
  if(type==='flat'){addPanel(group,w,t,d,0,h+t/2,0,wood);parent.add(group);return {pieces:1,group};}
@@ -142,7 +142,7 @@ function rebuild(){
  addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,false);
  // Fundo com dentes dimensionados pelo mesmo passo dos rasgos inferiores das paredes.
  addFingerBase(model,w-2*t,d-2*t,t,n);
- const lidResult=addLid(model,lidType,w,d,h,t,lidGap);lidAssembly=lidResult.group;const lidPieces=lidResult.pieces;
+ const lidResult=addLid(model,lidType,w,d,h,t,lidGap,n);lidAssembly=lidResult.group;const lidPieces=lidResult.pieces;
  model.traverse(o=>{if(o.isMesh)o.material.wireframe=state.wire;});
  $('dimensionText').textContent=`${w} × ${d} × ${h} mm`;
  $('pieceCount').textContent=`${5+lidPieces} peças`;$('materialText').textContent=`MDF ${t} mm`;updateFingerPreview();
