@@ -82,10 +82,12 @@ function rebuild(){
  const {w,d,h,t,n}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
  // Cada canto alterna qual parede atravessa a espessura da outra.
  // Frente/traseira são inteiras nas bandas pares; laterais nas ímpares.
- addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,true);
- addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,false);
+ // A alternância acompanha o sentido físico de cada borda da base:
+ // frente e lateral esquerda usam paridade invertida; traseira e direita, normal.
+ addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,false);
+ addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,true);
  addSteppedWall(model,d,h,t,n,false,w/2-t/2,h/2,0,-Math.PI/2,darkWood,true);
- addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,true);
+ addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,false);
  // Fundo interno plano, apoiado nas quatro paredes. O encaixe inferior será
  // tratado como uma etapa própria, sem fingir que os rasgos atuais são válidos.
  addFingerBase(model,w-2*t,d-2*t,t,n);
@@ -109,7 +111,7 @@ function exportSVG(){
  const panels=[
   ['Frente',w,h,wallPath(w,h,n,t,true,kerf,false)],
   ['Traseira',w,h,wallPath(w,h,n,t,true,kerf,true)],
-  ['Lateral esquerda',d,h,wallPath(d,h,n,t,false,kerf,true)],
+  ['Lateral esquerda',d,h,wallPath(d,h,n,t,false,kerf,false)],
   ['Lateral direita',d,h,wallPath(d,h,n,t,false,kerf,true)],
   ['Fundo',w-2*t,d-2*t,basePath(w-2*t,d-2*t,n,t,kerf)]
  ];
