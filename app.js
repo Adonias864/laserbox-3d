@@ -82,8 +82,8 @@ function rebuild(){
  const {w,d,h,t,n}=dims();scene.remove(model);model=new THREE.Group();scene.add(model);
  // Cada canto alterna qual parede atravessa a espessura da outra.
  // Frente/traseira são inteiras nas bandas pares; laterais nas ímpares.
- addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,false);
- addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,true);
+ addSteppedWall(model,w,h,t,n,true,0,h/2,d/2-t/2,0,wood,true);
+ addSteppedWall(model,w,h,t,n,true,0,h/2,-d/2+t/2,0,wood,false);
  addSteppedWall(model,d,h,t,n,false,w/2-t/2,h/2,0,-Math.PI/2,darkWood,true);
  addSteppedWall(model,d,h,t,n,false,-w/2+t/2,h/2,0,Math.PI/2,darkWood,true);
  // Fundo interno plano, apoiado nas quatro paredes. O encaixe inferior será
